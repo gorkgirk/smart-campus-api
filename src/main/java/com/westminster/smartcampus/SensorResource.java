@@ -42,8 +42,7 @@ public class SensorResource {
      * Using a query parameter (rather than a path segment like
      * /sensors/type/Temperature) is conventional for filtering
      * collections: queries can be combined, omitted, or extended
-     * without changing the URL hierarchy. We'll discuss this in
-     * the report answer for Part 3.2.
+     * without changing the URL hierarchy.
      */
     @GET
     public Collection<Sensor> listSensors(@QueryParam("type") String type) {
@@ -73,14 +72,11 @@ public class SensorResource {
      * POST /api/v1/sensors
      *
      * Registers a new sensor. The roomId in the body MUST refer to
-     * an existing room — otherwise we return a dependency-validation
-     * error (422 Unprocessable Entity, mapped via Part 5's
-     * LinkedResourceNotFoundException). For now we return it inline
-     * with a clear JSON error; Part 5 will replace this with a thrown
-     * custom exception and an exception mapper.
+     * an existing room — otherwise we throw LinkedResourceNotFoundException,
+     * which the dedicated mapper converts to HTTP 422 Unprocessable Entity.
      *
      * On success: 201 Created + Location header pointing at the
-     * newly-registered sensor — the conventional REST creation pattern.
+     * newly-registered sensor.
      *
      * Side effect: the sensor's ID is also pushed onto the parent
      * room's sensorIds list, keeping the bidirectional link in sync.
@@ -99,23 +95,19 @@ public class SensorResource {
                     .build();
         }
         if (sensor.getRoomId() == null || sensor.getRoomId().isBlank()) {
-            return Response.status(422)
-                    .entity(new ErrorMessage("roomId is required to register a sensor."))
-                    .build();
+            throw new LinkedResourceNotFoundException(
+                    "roomId is required to register a sensor.");
         }
 
         // Foreign-key validation: the referenced room must exist.
         // 422 Unprocessable Entity is more semantically accurate than 404
         // here because the JSON itself is well-formed — only the *referenced*
-        // resource is missing. We'll formalize this with an ExceptionMapper
-        // in Part 5.
+        // resource is missing. The exception mapper handles the response shape.
         Room parentRoom = roomStore.findById(sensor.getRoomId());
         if (parentRoom == null) {
-            return Response.status(422)
-                    .entity(new ErrorMessage(
-                            "Cannot register sensor: room '" + sensor.getRoomId()
-                            + "' does not exist."))
-                    .build();
+            throw new LinkedResourceNotFoundException(
+                    "Cannot register sensor: room '" + sensor.getRoomId()
+                    + "' does not exist.");
         }
 
         // Save the sensor and update the parent room's sensorIds list.

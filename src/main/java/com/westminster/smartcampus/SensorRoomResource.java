@@ -63,7 +63,7 @@ public class SensorRoomResource {
      * Creates a new room from the JSON request body.
      * Returns 201 Created with a Location header pointing at the new resource.
      *
-     * @param room   the deserialized room from the request body
+     * @param room    the deserialized room from the request body
      * @param uriInfo injected by JAX-RS, used to build the Location URI
      */
     @POST
@@ -96,9 +96,11 @@ public class SensorRoomResource {
      * Removes a room — but only if it has no sensors assigned, to prevent orphans.
      *
      * Business rule: a room with sensorIds attached cannot be deleted.
-     * For now we return 409 Conflict with an explanatory message.
-     * In Part 5 we'll formalize this with a custom RoomNotEmptyException
-     * and a dedicated ExceptionMapper.
+     * We throw a custom RoomNotEmptyException which is converted to
+     * a 409 Conflict response by RoomNotEmptyExceptionMapper. Centralising
+     * error formatting in the mapper keeps this resource focused on the
+     * happy path and ensures every "room not empty" error has a uniform
+     * shape across the API.
      */
     @DELETE
     @Path("{roomId}")
@@ -112,11 +114,9 @@ public class SensorRoomResource {
 
         // Safety check: refuse to delete if sensors are still assigned.
         if (room.getSensorIds() != null && !room.getSensorIds().isEmpty()) {
-            return Response.status(Response.Status.CONFLICT)
-                    .entity(new ErrorMessage(
-                            "Room '" + roomId + "' cannot be deleted: it still has "
-                            + room.getSensorIds().size() + " sensor(s) assigned."))
-                    .build();
+            throw new RoomNotEmptyException(
+                    "Room '" + roomId + "' cannot be deleted: it still has "
+                    + room.getSensorIds().size() + " sensor(s) assigned.");
         }
 
         store.delete(roomId);

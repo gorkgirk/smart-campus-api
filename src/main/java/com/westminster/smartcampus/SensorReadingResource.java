@@ -67,9 +67,10 @@ public class SensorReadingResource {
      * sensor object always exposes the most recent measurement.
      *
      * Business rule (Part 5.3): if the sensor's status is
-     * "MAINTENANCE", new readings are rejected with 403 Forbidden.
-     * For now we return this inline; in Part 5 we'll throw a custom
-     * SensorUnavailableException and let an ExceptionMapper handle it.
+     * "MAINTENANCE", new readings are rejected. We throw a custom
+     * SensorUnavailableException, which the dedicated mapper converts
+     * to a 403 Forbidden response — keeping this method focused on
+     * the happy path.
      */
     @POST
     public Response addReading(SensorReading reading, @Context UriInfo uriInfo) {
@@ -81,11 +82,9 @@ public class SensorReadingResource {
 
         // Block readings on sensors under maintenance.
         if ("MAINTENANCE".equalsIgnoreCase(sensor.getStatus())) {
-            return Response.status(Response.Status.FORBIDDEN)
-                    .entity(new ErrorMessage(
-                            "Sensor '" + sensor.getId() + "' is under MAINTENANCE; "
-                            + "readings are not accepted."))
-                    .build();
+            throw new SensorUnavailableException(
+                    "Sensor '" + sensor.getId() + "' is under MAINTENANCE; "
+                    + "readings are not accepted.");
         }
 
         // Auto-generate id and timestamp if the client didn't supply them.
