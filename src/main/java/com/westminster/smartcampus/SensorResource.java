@@ -129,4 +129,25 @@ public class SensorResource {
                 .build();
         return Response.created(location).entity(sensor).build();
     }
+
+    /**
+     * Sub-resource locator for /api/v1/sensors/{sensorId}/readings.
+     *
+     * Note: this method is annotated with @Path but NOT with @GET,
+     * @POST, etc. That's the JAX-RS "locator" pattern: rather than
+     * handling the request itself, the method returns a new resource
+     * instance (SensorReadingResource) which then handles the
+     * remainder of the URL with its own annotated methods.
+     *
+     * This keeps SensorResource focused on sensor-level concerns
+     * and pushes per-sensor reading logic into a dedicated class.
+     */
+    @Path("{sensorId}/readings")
+    public SensorReadingResource readings(@PathParam("sensorId") String sensorId) {
+        Sensor parent = sensorStore.findById(sensorId);
+        // Even if parent is null we still return a SensorReadingResource;
+        // it will produce a 404 itself. Returning null here would cause
+        // JAX-RS to throw a generic 500.
+        return new SensorReadingResource(parent);
+    }
 }
